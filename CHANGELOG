@@ -1,0 +1,50 @@
+New in verison 0.0.9:
+	* Reverse DNS on log messages. New config options controlling this:
+		dns_lookup (bool), dns_timeout (hopefully much less than 
+		relay_delay), dns_batch_limit (64?).
+
+New in verison 0.0.8:
+	* The Mail module had two bugs, one preventing newlines from appearing
+		in outgoing mails in some cases, the other showing IPs in the
+		e-mail subject that may not actually appear in syslogs included
+		in that e-mail.  Both bugs hopefully squashed.
+
+New in version 0.0.7:
+	* The Mail module will now filter out repetition of the same IP
+		addresses within a single syslog message, to save space.  This
+		issue manifests itself due to filter I've provided for use
+		by syslog-ng to pass messages along to fitful.  When a device
+		doesn't know or doesn't publish its own hostname in its syslog
+		message, the IP fills slots for both, making the message
+		unnecessarily long.
+
+New in version 0.0.6:
+	* Mail finally displays correctly in Outlook.  This is the problem
+		that I at first wrongly blamed on Exchange or BES.  Line breaks
+		appeared to be missing not because of anything wrong with
+		quoted-printable, but because of Outlook's silly feature
+		to arbitrarily remove 'extra' line breaks.  This was corrected
+		with an equally silly kludge that adds a tab right before the
+		line break for lines of syslog in the email.  That seems to
+		tell Outlook not to remove the line break.  Thanks Shawn!
+
+New in version 0.0.5:
+	* PID file location is now configurable.  This makes it easy to run
+		fitfuld as a non-root user if you choose a file path that
+		doesn't need root permissions to be written to.
+	* Mail subject prefix is now configurable.
+	* Mail is no longer MIME quoted-printable.  It is hoped this will
+		fix a problem where emails seem to be missing line breaks when
+		transferred through Exchange (and a BES?).
+
+New in version 0.0.4:
+	* Removed the whole named pipe/'fitfulr' business and turned the
+		fitfuld program into a TCP server (listens by default on
+		localhost:4955).
+	* Send email with CRLF's like a good citizen (definitely necessary
+		when SMTP relay is Micro$oft).
+	* The Mail relay module now greps syslog lines for hostnames and IPs
+		and will add them to the subject line of the email if there aren't
+		too many distinct IPs and hostnames per message (limit 5).  This
+		depends on the syslog messages arriving in the right format (see
+		the "syslog-ng template" section of the INSTALL file.

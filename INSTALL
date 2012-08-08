@@ -1,0 +1,36 @@
+The four commands at the end of this file should work if you have all the
+necessary dependencies.
+
+Those dependencies are:
+	Some kind of modern decent Linux
+	A reasonably modern version of syslog-ng that you can configure freely
+	Perl >= 5.8
+	Config::General
+	Mail::Sendmail
+	Proc::Daemon
+	Net::DNS
+
+As for those dependencies that are perl modules, you can install them
+either via your distributions package manager, if it provides them, or
+via CPAN.
+
+Here are those four commands you need.  Run the first two as a regular user,
+and the last two as root.
+
+$ perl Makefile.PL
+$ make
+# make install
+# ./install-conf.pl
+
+
+*** syslog-ng template ***
+It's up to you what sources and filters you use, but your 'destination'
+block in your syslog-ng configuration should look like this:
+
+destination mydest {
+	tcp (
+		"localhost"
+		port (4955)
+		template ("$DATE [$SOURCEIP ($HOST)] <$FACILITY.$PRIORITY> $MSG\n")
+	);
+};

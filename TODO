@@ -1,0 +1,6 @@
+* Move the just-added filtering of redundant IP addresses in the syslog
+	messages in the Mail module up into some more central place.  There's
+	no reason for that behavior to be specific to the mail module.
+* Maybe set e-mail priority based on syslog priority.
+* Add command line options in addition to more conf-file-configurable things.
+* Clean out some unused code left over from fitfulr ($prepend, etc...)

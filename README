@@ -1,0 +1,31 @@
+Fitful (for FiFo Log thing)
+===========================
+
+Fitful groups and relays syslog messages from syslog-ng.
+
+Installation
+------------
+
+Installation instructions are in INSTALL.
+
+At the end of installation, be sure to read the output of setup.sh
+carefully.
+
+The server
+----------
+
+fitfuld is a daemon that should always run, listening for log
+messages to be relayed to it by syslog-ng and dispatching
+them appropriately.
+
+fitfuld has 'relay' modules, each of which has a configuration. The only
+module activated by default has a special hard-coded configuration for
+performance reasons.  Other modules get their configurations from
+text files at /etc/fitful/modules/<lowercasemodulename>.conf.  The
+(no-op) module "Text" has the typical configuration that extension
+modules would use.
+
+fitfuld is multi-threaded.  It listens on a TCP socket for incoming
+lines sent by syslog-ng.  It queues these.  Another thread periodically takes
+the contents of the queue, sends it to all modules (only Mail is active by
+default), and clears the queue at a regular interval.

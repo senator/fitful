@@ -1,0 +1,222 @@
+#!/usr/bin/perl
+
+package fitfuld;
+
+use threads;
+use threads::shared;
+
+use constant {
+	START_DELAY => 500000
+};
+
+use Carp;
+use Fcntl;
+use Time::HiRes 'usleep';
+
+use Fitful;
+
+our $should_quit :shared;
+
+# I had wanted to make the queue an object.  Sharing objects among threads
+# in perl turns out to be not impossible, but unduly complicated, so a list
+# will have to do for our purposes.
+our @queue :shared;
+our @errors :shared;
+
+our @relays;	# not shareable
+
+our $syslog_thread;	# not shareable
+our $options;		# no need to share
+
+
+sub fitfuld_shutdown
+{
+	$should_quit = 1;	# thus signal other threads to quit
+	$syslog_thread->join;
+	if (int (scalar (@queue)) > 0) # anything in the queue when we died?
+	{
+		# lock the queue for the last time and mail off its contents
+		lock @queue;
+		my $mailrelay = Fitful::RelayLoader::byName ('Mail', @relays);
+		croak "Lost track of mail relay module!" if not defined $mailrelay;
+		$mailrelay->send (\@queue,
+			"Messages in queue upon fitfuld shutdown:\n\n");
+	}
+
+	lock @errors;
+	if (defined $options)
+	{
+		unlink $options->get ("pid_file")
+			or warn "Couldn't remove PID file: $!";
+	}
+	croak join ("\n", @errors) if @errors;
+
+	exit 0;
+}
+
+sub write_pid_file
+{
+	my $filename = shift;
+	open FH, ">$filename" or croak "couldn't open $filename for writing: $!";
+	print FH "$$\n";
+	close FH;
+}
+
+sub main
+{
+	# Make sure 'should_quit' is initialized
+	$should_quit = 0;
+	$SIG{"TERM"} = \&fitfuld_shutdown;
+
+	# First order of business: load options from conf file
+	$options = new Fitful::Options;
+
+	# STDERR will already be closed as we're a daemon
+	open STDERR, "|logger -t fitfuld"
+		or croak "Couldn't redirect STDERR to logger ($!)"; # pointless?
+
+	# write a PID file so the daemon can be more easily managed
+	# by init scripts and the like
+	eval { write_pid_file ($options->get ("pid_file")); }
+		or croak "Couldn't write PID file: $@";
+
+	# convert milliseconds to microseconds for usleep()
+	my $microdelay = int ($options->get ("relay_delay")) * 1000;
+
+	my $dns_lookup, $dns_timeout, $dns_batch_limit;
+	if ($dns_lookup = $options->get ("dns_lookup")) {
+		$dns_timeout = $options->get ("dns_timeout");
+		$dns_batch_limit = $options->get ("dns_batch_limit");
+	}
+	# Next, load all relay modules (which load their own configs)
+	@relays = Fitful::RelayLoader::loadAll ($options->get ("relay_modules"));
+
+
+	# I guess it's time to make threads...
+	#	one thread to listen for input on the fifo
+	$syslog_thread = eval { threads->create
+		(\&Fitful::SyslogListener::syslog_main, $options) }
+			or croak "Couldn't create syslog listener thread: $@";
+
+	#	The main thread (that we're already in; no need to create) will
+	#	process the queue at regular intervals.
+	#	other thread now.
+
+	# Wait just half a second to give our threads a chance to fail on
+	# startup if they're going to, without going into our main loop.
+	usleep START_DELAY;
+
+	# Here's our 'main loop':
+	until ($should_quit) # $should_quit gets set by the threads as needed
+	{
+		if (int (scalar (@queue)) > 0)
+		{
+			lock @queue;
+			Fitful::Lookup::lookup_rdns(\@queue, $dns_batch_limit, $dns_timeout) if $dns_lookup;
+			foreach my $relay (@relays) { $relay->send (\@queue); }
+			@queue = ();	# flush
+		}	# lock should go out of scope and expire right here
+		usleep $microdelay;
+	}
+
+	fitfuld_shutdown ();
+}
+
+# ### 
+# Here is the program's point of entry
+
+INIT
+{
+	# For some reason that I don't totally get (but it might
+	# have to do with sharing variables among threads),
+	# Proc::Daemon::Init() has to be inside this INIT block or
+	# else nothing works.
+	use Cwd;
+	use Proc::Daemon;
+	my $cwd = cwd;
+	Proc::Daemon::Init;
+	chdir $cwd;	# Proc::Daemon::Init() chdir's to /, which is not helpful
+
+}
+
+main;
+
+__END__
+
+=head1 NAME
+
+fitfuld - FiFo Log Daemon
+
+=head1 SYNOPSIS
+
+=over 4
+
+=item fitfuld
+
+=item [This command takes no options or arguments.]
+
+=back
+
+=head1 DESCRIPTION
+
+B<fitfuld> is a daemon that listenes for messages on a TCP socket, queues them
+up, then passes them to relay modules at a configurable interval (by default
+every 15 seconds).
+
+As of this writing, the only real module that B<fitfuld>
+comes with is the Mail module, which sends out an email containing any
+messages that it has queued up every time that interval comes around.
+It also filters these for uniqueness (within each email).
+
+You should have a program like syslog-ng write messages to syslog-ng on
+its TCP port (localhost:4955 by default).
+
+A configuration file is read from /etc/fitful/fitful.conf
+
+=head1 DEPENDENCIES
+
+=over 4
+
+=item *
+
+perl >= 5.8
+
+=item *
+
+Config::General
+
+=item *
+
+Proc::Daemon
+
+=item *
+
+Mail::Sendmail
+
+=back
+
+=head1 BUGS
+
+There are possibly many bugs.  This is an initial release that may
+see very little daylight.
+
+=head1 LICENSE
+
+ fitfuld - FiFo Log Daemon (part of the fitful package)
+ Copyright (C) 2010-12 Lebbeous Fogle-Weekley <lebbeous@gmail.com>.
+
+fitful is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+=cut
