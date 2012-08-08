@@ -1,3 +1,8 @@
+* When using rDNS on hosts reported by IP only in log messages, send only
+    the hostname rather than the FQDN in emails.
+* Use these hostnames from rDNS in email subjects
+* Reformat CHANGELOG in GNU format.
+* Apply GPL more clearly and widely throughout files.
 * Move the just-added filtering of redundant IP addresses in the syslog
 	messages in the Mail module up into some more central place.  There's
 	no reason for that behavior to be specific to the mail module.
