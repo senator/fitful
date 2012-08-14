@@ -25,7 +25,7 @@ sub uniq_ips {
 # $queue is a reference to the list of log lines.  Change them by replacing
 # IPs with DNS names when possible.
 sub lookup_rdns {
-    my ($queue, $line_limit, $timeout) = @_;
+    my ($queue, $line_limit, $timeout, $keep_fqdn) = @_;
 
     # keys of the resulting hash here are uniqified IPs
     my $ip_map = uniq_ips($queue, $line_limit);
@@ -45,9 +45,12 @@ sub lookup_rdns {
             my $ip = $socks{$sock}[0];
             my @answers = $resolver->bgread($sock)->answer;
             if (@answers) {
+                # prepare the name
                 (my $name = $answers[0]->rdatastr) =~ s/\.$//;
-                my $lines = $ip_map->{$ip};
-                foreach my $line_ref (@$lines) {
+                $name = (split /\./, $name)[0] unless $keep_fqdn;
+
+                # replace occurences of IP with name
+                foreach my $line_ref (@{$ip_map->{$ip}}) {
                     $$line_ref =~ s/$ip/$name/; # just once
                 }
             }

@@ -23,8 +23,7 @@ sub send
 	my $n = int (scalar (@{$listref}));
 	return if $n < 1;	# nothing to do if no messages
 
-	# Here is where we sort the messages uniquely.
-	# This should move to a private method?
+	# Here we sort the messages uniquely.
 	my ($subject, $message) = $self->_uniqify ($listref);
 	$message = $prepend . $message if defined $prepend;
 
@@ -54,7 +53,7 @@ sub _sendmail
 		or die "Mail::Sendmail::sendmail failed: $Mail::Sendmail::error";
 }
 
-sub _parse_ip
+sub _parse_host
 {
 	my ($self, $msg) = @_;
 
@@ -77,7 +76,7 @@ sub _gen_subject
 	return "$prefix Multiple sources";
 }
 
-sub _remove_redundant_ip
+sub _remove_redundant_host
 {
 	my ($self, $string) = @_;
 
@@ -85,10 +84,8 @@ sub _remove_redundant_ip
 
 	if (@parts == 4)
 	{
-		if ($parts[1] eq $parts[2])
-		{
-			return $parts[0] . "[" . $parts[1] . "]" . $parts[3] . "\n";   # skip 2
-		}
+		# part two should be the hostname, part 1 should be the ip?
+		return $parts[0] . "[" . $parts[2] . "]" . $parts[3] . "\n";
 	}
 	return $string;
 }
@@ -99,14 +96,14 @@ sub _uniqify
 
 	my $n = 0;
 	my $message = '';
-	my %seen_ip = ();
+	my %seen_host = ();
 	my %seen = ();
 	foreach (@{$listref})
 	{
-		my $ip;
-		if (defined ($ip = $self->_parse_ip ($_)))
+		my $host;
+		if (defined ($host = $self->_parse_host ($_)))
 		{
-			$seen_ip{$ip} = 1;
+			$seen_host{$host} = 1;
 		}
 		if (!$seen{$_})
 		{
@@ -115,7 +112,7 @@ sub _uniqify
 			# users, because Outlook is TOTAL CRAP! ARGGGH!
 			# Shawn: thanks for the help finding the bug!
 			(my $bit = $_) =~ s/\n/\t\n/g;
-			$bit = $self->_remove_redundant_ip ($bit);
+			$bit = $self->_remove_redundant_host ($bit);
 			$message .= $bit;
 		}
 		$n++;
@@ -130,7 +127,7 @@ sub _uniqify
 	else { $header .= ":\r\n\r\n"; }
 
 	# combine generated message parts
-	return ($self->_gen_subject (keys %seen_ip), $header . $message);
+	return ($self->_gen_subject (keys %seen_host), $header . $message);
 
 }
 

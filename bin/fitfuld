@@ -83,11 +83,13 @@ sub main
 	# convert milliseconds to microseconds for usleep()
 	my $microdelay = int ($options->get ("relay_delay")) * 1000;
 
-	my $dns_lookup, $dns_timeout, $dns_batch_limit;
+	my $dns_lookup, $dns_timeout, $dns_batch_limit, $dns_keep_fqdn;
 	if ($dns_lookup = $options->get ("dns_lookup")) {
 		$dns_timeout = $options->get ("dns_timeout");
 		$dns_batch_limit = $options->get ("dns_batch_limit");
+		$dns_keep_fqdn = $options->get ("dns_keep_fqdn");
 	}
+
 	# Next, load all relay modules (which load their own configs)
 	@relays = Fitful::RelayLoader::loadAll ($options->get ("relay_modules"));
 
@@ -112,7 +114,7 @@ sub main
 		if (int (scalar (@queue)) > 0)
 		{
 			lock @queue;
-			Fitful::Lookup::lookup_rdns(\@queue, $dns_batch_limit, $dns_timeout) if $dns_lookup;
+			Fitful::Lookup::lookup_rdns(\@queue, $dns_batch_limit, $dns_timeout, $dns_keep_fqdn) if $dns_lookup;
 			foreach my $relay (@relays) { $relay->send (\@queue); }
 			@queue = ();	# flush
 		}	# lock should go out of scope and expire right here
