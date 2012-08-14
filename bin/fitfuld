@@ -170,8 +170,8 @@ comes with is the Mail module, which sends out an email containing any
 messages that it has queued up every time that interval comes around.
 It also filters these for uniqueness (within each email).
 
-You should have a program like syslog-ng write messages to syslog-ng on
-its TCP port (localhost:4955 by default).
+You should have a program like syslog-ng write syslog messages to B<fitfuld>'s
+TCP port (localhost:4955 by default).
 
 A configuration file is read from /etc/fitful/fitful.conf
 
@@ -194,6 +194,10 @@ Proc::Daemon
 =item *
 
 Mail::Sendmail
+
+=item *
+
+Net::DNS
 
 =back
 
