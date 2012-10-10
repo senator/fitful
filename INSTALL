@@ -34,3 +34,14 @@ destination mydest {
 		template ("$DATE [$SOURCEIP ($HOST)] <$FACILITY.$PRIORITY> $MSG\n")
 	);
 };
+
+
+*** rsyslog configuration ***
+If you're using rsyslog instead of syslog-ng, you want a configuration like
+this one:
+
+$template fitful,"%timegenerated% [%FROMHOST% (%HOSTNAME%)] <%syslogseverity-text%> %syslogtag%%msg%"
+*.*    @@127.0.0.1:4955;fitful
+
+That would send all your syslog messages to a fitful instance on localhost, so
+you might replace the *.* with something else depending on your situation.
