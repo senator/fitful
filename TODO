@@ -1,4 +1,3 @@
-* Document config to use with rsyslog
 * Reformat CHANGELOG in GNU format.
 * Apply GPL more clearly and widely throughout files.
 * Move the just-added filtering of redundant IP addresses in the syslog

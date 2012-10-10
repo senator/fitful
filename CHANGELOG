@@ -1,3 +1,10 @@
+New in version 0.1.0:
+    * When using reverse DNS on log messages, now you only have to see the
+        hostname part of the resolved name instead of the whole FQDN
+        unless you enable a new option (dns_keep_fqdn).
+    * Hostnames resolved via reverse DNS now go into email subjects.
+    * A little bit more documentation, including example rsyslog conf.
+
 New in verison 0.0.9:
 	* Reverse DNS on log messages. New config options controlling this:
 		dns_lookup (bool), dns_timeout (hopefully much less than 
